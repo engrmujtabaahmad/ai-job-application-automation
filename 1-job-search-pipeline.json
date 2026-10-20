@@ -1,0 +1,348 @@
+{
+  "name": "Job Search Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -528,
+        -16
+      ],
+      "id": "71798649-c6de-407f-b34d-e91d9218ccf9",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -224,
+        -16
+      ],
+      "id": "1cf34967-1fed-4931-a285-eb8abfd68113",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now }}",
+            "Title": "={{ $json.title }}",
+            "Company": "={{ $json.company }}",
+            "Platform": "={{ $json.platform }}",
+            "Apply URL": "={{ $json.applyUrl }}",
+            "Location": "={{ $json.location }}",
+            "Status": "Found"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Platform",
+              "displayName": "Platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Apply URL",
+              "displayName": "Apply URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "CV Sent",
+              "displayName": "CV Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        496,
+        -16
+      ],
+      "id": "7f7be170-194b-4db3-a6be-9175ada485d8",
+      "name": "Append row in sheet"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/actors/truefetch~job-search/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"keyword\": \"AI Engineer\",\n  \"country\": \"Pakistan\",\n  \"max_results\": 25\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -368,
+        64
+      ],
+      "id": "9a3d889b-0a0a-49ac-8088-a8211bdabe04",
+      "name": "Apify"
+    },
+    {
+      "parameters": {
+        "url": "https://api.adzuna.com/v1/api/jobs/gb/search/1?results_per_page=25&what=AI%20Engineer&content-type=application/json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpCustomAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -368,
+        -112
+      ],
+      "id": "5f872751-bc6b-4213-b18c-7bb2a3482105",
+      "name": "Adzuna"
+    },
+    {
+      "parameters": {
+        "jsCode": "const output = [];\n\nfor (const item of $input.all()) {\n  const d = item.json;\n\n  // Adzuna shape: has \"results\" array\n  if (d.results && Array.isArray(d.results)) {\n    for (const job of d.results) {\n      output.push({\n        json: {\n          title: job.title,\n          company: job.company?.display_name || \"Unknown\",\n          location: job.location?.display_name || \"\",\n          platform: \"Adzuna\",\n          description: job.description,\n          applyUrl: job.redirect_url,\n          postedDate: job.created,\n          salaryMin: job.salary_min || null,\n          salaryMax: job.salary_max || null\n        }\n      });\n    }\n  }\n  // Apify shape: already flat job objects\n  else if (d.job_title || d.title) {\n    output.push({\n      json: {\n        title: d.job_title || d.title,\n        company: d.company_name || \"Unknown\",\n        location: d.location || \"\",\n        platform: d.platform || \"Unknown\",\n        description: d.description || \"\",\n        applyUrl: d.official_url || d.platform_url || \"\",\n        postedDate: d.posted_date || \"\",\n        salaryMin: d.salary_minimum || null,\n        salaryMax: d.salary_maximum || null\n      }\n    });\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -64
+      ],
+      "id": "3d19c258-2f5e-4cd4-8336-69ca74840b1e",
+      "name": "Normalize"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -368,
+        256
+      ],
+      "id": "3b0312e2-9dea-4710-a018-1b92f92da75b",
+      "name": "Get Existing Applications"
+    },
+    {
+      "parameters": {
+        "jsCode": "const keywords = [\"ai\", \"machine learning\", \"software engineer\", \"web developer\", \"laravel\", \"automation\"];\n\nreturn $input.all().filter(item => {\n  const title = (item.json.title || \"\").toLowerCase();\n  return keywords.some(k => title.includes(k));\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -16
+      ],
+      "id": "8cf16030-4fc3-450b-935b-8a251de4cdb0",
+      "name": "keyword filter"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst norm = (s) => (s || \"\").toString().toLowerCase().trim().replace(/\\s+/g, \" \");\n\n// Existing rows from the Sheet - build a key from title + company\nconst existingKeys = new Set(\n  items\n    .filter(i => i.json['Apply URL'] !== undefined)\n    .map(i => `${norm(i.json.Title)}|${norm(i.json.Company)}`)\n);\n\n// New search results\nconst jobItems = items.filter(i => i.json.applyUrl !== undefined);\n\nreturn jobItems.filter(i => {\n  const key = `${norm(i.json.title)}|${norm(i.json.company)}`;\n  return !existingKeys.has(key);\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        -16
+      ],
+      "id": "002b3587-b0eb-4d04-acaf-36934f7c77b7",
+      "name": "Dedup Check"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Apify",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Adzuna",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Existing Applications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Adzuna": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "node": "Dedup Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "keyword filter": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup Check": {
+      "main": [
+        [
+          {
+            "node": "keyword filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Existing Applications": {
+      "main": [
+        [
+          {
+            "node": "Dedup Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}

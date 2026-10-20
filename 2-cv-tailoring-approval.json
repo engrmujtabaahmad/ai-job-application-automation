@@ -1,0 +1,342 @@
+{
+  "name": "CV Tailoring & Approval",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -496,
+        -144
+      ],
+      "id": "343759c2-5554-4b7a-8303-b2749fd7c8fa",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        -144
+      ],
+      "id": "75ebcac7-e4af-4ec9-ae67-22244b2f933c",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst html = `\n<html><head><style>\nbody { font-family: Arial, sans-serif; padding: 40px; color: #222; }\nh1 { color: #1F3864; margin-bottom: 0; }\nh2 { color: #1F3864; border-bottom: 1px solid #1F3864; padding-bottom: 4px; margin-top: 20px; }\n.contact { font-size: 13px; color: #444; }\nul { margin: 5px 0; padding-left: 20px; }\n</style></head><body>\n<h1>MUHAMMAD MUJTABA AHMAD</h1>\n<div class=\"contact\">YOUR_CITY, YOUR_COUNTRY | YOUR_PHONE | YOUR_EMAIL<br>\nlinkedin.com/in/muhammad-mujtaba-ahmad-29a3b7360 | github.com/engrmujtabaahmad</div>\n\n<h2>PROFESSIONAL SUMMARY</h2>\n<p>${data.tailoredSummary}</p>\n\n<h2>SKILLS</h2>\n<ul>${data.tailoredSkills.map(s => `<li>${s}</li>`).join('')}</ul>\n\n<h2>EXPERIENCE</h2>\n<p><b>AI Engineer Intern</b> \\u2014 OptimusFox Pvt Ltd (Jul 2026 \\u2013 Present)</p>\n<p><b>System Support Engineer</b> \\u2014 Sybrid (Pvt) Ltd (Jun 2026 \\u2013 Aug 2026)</p>\n<p><b>IT Intern</b> \\u2014 Fauji Fertilizer Company (Jul 2025 \\u2013 Sep 2025)</p>\n\n<h2>EDUCATION</h2>\n<p>BS Computer Engineering \\u2014 KFUEIT, Rahim Yar Khan (CGPA: 3.88/4.0)</p>\n\n<h2>APPLYING FOR</h2>\n<p>${data.Title} at ${data.Company}</p>\n</body></html>\n`;\n\nreturn [{ json: { ...data, resumeHtml: html } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        -144
+      ],
+      "id": "42fbf6dd-280a-4ba7-90ee-551d09c401ca",
+      "name": "Build Resume HTML"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "=Status",
+              "lookupValue": "Found"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -320,
+        -144
+      ],
+      "id": "cdc76892-e485-42ff-b57d-541a277f9f64",
+      "name": "Get Pending Jobs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"Yahan mera base resume hai:\\n\\n[SUMMARY: Computer Engineering graduate, AI Engineer Intern at OptimusFox, n8n automation, LLM APIs]\\n[SKILLS: n8n, LLM APIs, PHP, Laravel, JavaScript, YOLO, EasyOCR, Networking, Docker, PostgreSQL]\\n[PROJECTS: Multi-Platform Social Media Automation (n8n), AI Accident Response System (YOLO/EasyOCR/Streamlit)]\\n\\nJob Title: {{ $json.Title }}\\nCompany: {{ $json.Company }}\\nJob Description: {{ $json.description }}\\n\\nDo cheezein karo:\\n1. Ek ATS-optimized 3-4 line summary aur 6-8 relevant skills banao jo IS job se match karein.\\n2. Job description scan karo aur batao kya extra documents mangey gaye hain (transcript, cover letter, portfolio, certificates, references) \\u2014 agar kuch na mile to empty array do.\\n\\nSirf JSON format main jawab do: {\\\"summary\\\": \\\"...\\\", \\\"skills\\\": [\\\"...\\\"], \\\"extraRequirements\\\": [\\\"...\\\"]}\"\n        }\n      ]\n    }\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -32,
+        -144
+      ],
+      "id": "261b919b-c43c-4d51-99fd-095fc56ae7ff",
+      "name": "Gemini Tailor CV"
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $('Limit').first().json;\nconst raw = $input.first().json.candidates[0].content.parts[0].text;\nconst parsed = JSON.parse(raw.replace(/```json|```/g, \"\").trim());\n\nreturn [{ json: {\n  ...original,\n  tailoredSummary: parsed.summary,\n  tailoredSkills: parsed.skills,\n  extraRequirements: parsed.extraRequirements || []\n} }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        -144
+      ],
+      "id": "357ca654-6b0c-4320-96dd-097b4d6b44ed",
+      "name": "Parse AI Response"
+    },
+    {
+      "parameters": {
+        "sendTo": "YOUR_EMAIL@example.com",
+        "subject": "=CV Approval Needed: {{ $json.Company }} - {{ $json.Title }} [ROW:{{ $json.row_number }}]",
+        "message": "=Job: {{ $json.Title }} at {{ $json.Company }}  Tailored Summary: {{ $json.tailoredSummary }}  Tailored Skills: {{ $json.tailoredSkills.join(', ') }}  Extra Requirements Detected: {{ $json.extraRequirements.join(', ') || 'None' }}  Apply karne ke liye is email ka REPLY karo: \"APPROVE\" Skip karne ke liye reply karo: \"SKIP\"",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        432,
+        -144
+      ],
+      "id": "d6ffc1a3-1fe5-459d-a6bc-66759bc6cede",
+      "name": "Send Approval Email"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $('Parse AI Response').item.json.row_number }}",
+            "Status": "Pending Approval"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Platform",
+              "displayName": "Platform",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Location",
+              "displayName": "Location",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Apply URL",
+              "displayName": "Apply URL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "CV Sent",
+              "displayName": "CV Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        608,
+        -144
+      ],
+      "id": "366c92ae-4251-4d52-8f87-c0ea2a55994f",
+      "name": "Mark Pending Approval"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Jobs": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Gemini Tailor CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Tailor CV": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Build Resume HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Resume HTML": {
+      "main": [
+        [
+          {
+            "node": "Send Approval Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Approval Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Pending Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "nodeGroups": [],
+  "tags": []
+}
